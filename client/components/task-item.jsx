@@ -1,49 +1,101 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { CheckCircle, Circle, Trash, Edit, Calendar, Clock } from "lucide-react"
+import { useState } from "react";
+import { format } from "date-fns";
+import {
+  CheckCircle,
+  Circle,
+  Trash,
+  Edit,
+  Calendar,
+  Clock,
+} from "lucide-react";
 
-export default function TaskItem({ task, onComplete, onDelete }) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedTitle, setEditedTitle] = useState(task.title)
-  const [editedDescription, setEditedDescription] = useState(task.description)
+export default function TaskItem({ task, onComplete, onDelete, onUpdate }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTask, setEditedTask] = useState(task);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleComplete = async () => {
+    if (isLoading) return;
+    try {
+      setIsLoading(true);
+      await onComplete(task._id);
+    } catch (error) {
+      console.error("Error completing task:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setIsLoading(true);
+      await onDelete(task._id);
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleEdit = () => {
-    setIsEditing(true)
-  }
+    setIsEditing(true);
+    setEditedTask(task);
+  };
 
-  const handleSave = () => {
-    // In a real app, this would update the task in the database
-    task.title = editedTitle
-    task.description = editedDescription
-    setIsEditing(false)
-  }
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      await onUpdate(task._id, editedTask);
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error updating task:", error);
+      // Reset to original values if update fails
+      setEditedTask(task);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedTask(task);
+    setIsEditing(false);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setEditedTask((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
       case "high":
-        return "text-red-600"
+        return "text-red-600";
       case "medium":
-        return "text-yellow-600"
+        return "text-yellow-600";
       case "low":
-        return "text-green-600"
+        return "text-green-600";
       default:
-        return "text-gray-600"
+        return "text-gray-600";
     }
-  }
+  };
 
   const getPriorityBadgeColor = (priority) => {
     switch (priority) {
       case "high":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case "medium":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "low":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   return (
     <div
@@ -51,14 +103,20 @@ export default function TaskItem({ task, onComplete, onDelete }) {
         task.priority === "high"
           ? "border-l-red-500"
           : task.priority === "medium"
-            ? "border-l-yellow-500"
-            : "border-l-green-500"
-      } ${task.completed ? "bg-gray-50" : ""} transition-all duration-200 hover:shadow-md`}
+          ? "border-l-yellow-500"
+          : "border-l-green-500"
+      } ${
+        task.status === "completed" ? "bg-gray-50" : ""
+      } transition-all duration-200 hover:shadow-md`}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3 flex-grow">
-          <button onClick={() => onComplete(task.id)} className="mt-1">
-            {task.completed ? (
+          <button
+            onClick={handleComplete}
+            className="mt-1 cursor-pointer hover:opacity-75 transition-opacity"
+            disabled={isEditing || isLoading}
+          >
+            {task.status === "completed" ? (
               <CheckCircle className="h-6 w-6 text-green-500" />
             ) : (
               <Circle className="h-6 w-6 text-gray-400" />
@@ -67,51 +125,89 @@ export default function TaskItem({ task, onComplete, onDelete }) {
 
           <div className="flex-grow">
             {isEditing ? (
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <input
                   type="text"
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                  className="form-input"
+                  name="title"
+                  value={editedTask.title}
+                  onChange={handleChange}
+                  className="form-input w-full"
+                  placeholder="Task title"
                 />
                 <textarea
-                  value={editedDescription}
-                  onChange={(e) => setEditedDescription(e.target.value)}
-                  className="form-input"
+                  name="description"
+                  value={editedTask.description}
+                  onChange={handleChange}
+                  className="form-input w-full"
                   rows="2"
+                  placeholder="Task description"
                 />
-                <div className="flex justify-end space-x-2">
-                  <button onClick={() => setIsEditing(false)} className="btn-secondary py-1 px-3 text-sm">
-                    Cancel
+                <div className="grid grid-cols-2 gap-4">
+                  <select
+                    name="priority"
+                    value={editedTask.priority}
+                    onChange={handleChange}
+                    className="form-input"
+                  >
+                    <option value="high">High Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="low">Low Priority</option>
+                  </select>
+                  <input
+                    type="date"
+                    name="dueDate"
+                    value={
+                      editedTask.dueDate
+                        ? format(new Date(editedTask.dueDate), "yyyy-MM-dd")
+                        : ""
+                    }
+                    onChange={handleChange}
+                    className="form-input"
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleSave}
+                    className="btn-primary"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Saving..." : "Save"}
                   </button>
-                  <button onClick={handleSave} className="btn-primary py-1 px-3 text-sm">
-                    Save
+                  <button
+                    onClick={handleCancel}
+                    className="btn-secondary"
+                    disabled={isLoading}
+                  >
+                    Cancel
                   </button>
                 </div>
               </div>
             ) : (
               <>
-                <div className="flex items-center space-x-2">
-                  <h3 className={`font-semibold ${task.completed ? "line-through text-gray-500" : ""}`}>
-                    {task.title}
-                  </h3>
-                  <span className={`text-xs px-2 py-1 rounded-full ${getPriorityBadgeColor(task.priority)}`}>
-                    {task.priority}
+                <h3
+                  className={`text-lg font-medium ${
+                    task.completed ? "line-through text-gray-500" : ""
+                  }`}
+                >
+                  {task.title}
+                </h3>
+                {task.description && (
+                  <p className="text-gray-600 mt-1">{task.description}</p>
+                )}
+                <div className="flex items-center space-x-4 mt-2">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityBadgeColor(
+                      task.priority
+                    )}`}
+                  >
+                    {task.priority} priority
                   </span>
-                  {task.completed && (
-                    <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">Completed</span>
+                  {task.dueDate && (
+                    <span className="flex items-center text-sm text-gray-500">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      Due: {format(new Date(task.dueDate), "MMM dd, yyyy")}
+                    </span>
                   )}
-                </div>
-                <p className={`text-sm text-gray-600 ${task.completed ? "line-through" : ""}`}>{task.description}</p>
-                <div className="flex items-center mt-2 text-sm space-x-4">
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    <span>{task.dueDate}</span>
-                  </div>
-                  <div className={`flex items-center ${getPriorityColor(task.priority)}`}>
-                    <Clock className="h-4 w-4 mr-1" />
-                    <span className="capitalize">{task.priority} Priority</span>
-                  </div>
                 </div>
               </>
             )}
@@ -120,10 +216,18 @@ export default function TaskItem({ task, onComplete, onDelete }) {
 
         {!isEditing && (
           <div className="flex space-x-2">
-            <button onClick={handleEdit} className="text-gray-500 hover:text-purple-600">
+            <button
+              onClick={handleEdit}
+              className="text-gray-500 hover:text-gray-700"
+              disabled={task.completed || isLoading}
+            >
               <Edit className="h-5 w-5" />
             </button>
-            <button onClick={() => onDelete(task.id)} className="text-gray-500 hover:text-red-600">
+            <button
+              onClick={handleDelete}
+              className="text-gray-500 hover:text-red-600"
+              disabled={isLoading}
+            >
               <Trash className="h-5 w-5" />
             </button>
           </div>
@@ -139,5 +243,5 @@ export default function TaskItem({ task, onComplete, onDelete }) {
         </div>
       )}
     </div>
-  )
+  );
 }
