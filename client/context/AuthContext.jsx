@@ -8,6 +8,7 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     // Check for token and user data in localStorage on mount
@@ -17,12 +18,14 @@ export function AuthProvider({ children }) {
     if (token && storedUser) {
       // Set the initial state
       setUser(JSON.parse(storedUser));
+      setIsAuthenticated(true);
       authAPI.setToken(token);
 
       // Verify the token with the server
       verifyToken(token);
     } else {
       setLoading(false);
+      setIsAuthenticated(false);
     }
   }, []);
 
@@ -31,6 +34,7 @@ export function AuthProvider({ children }) {
       const response = await authAPI.getMe();
       if (response.data.status === "success") {
         setUser(response.data.data.user);
+        setIsAuthenticated(true);
         localStorage.setItem("user", JSON.stringify(response.data.data.user));
       } else {
         // Token is invalid, clear storage
@@ -48,7 +52,7 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const response = await authAPI.login({ email, password });
-      console.log('Full login response:', response);
+      console.log("Full login response:", response);
 
       // Check if we have a valid response with token and user data
       if (response?.data?.token && response?.data?.user) {
@@ -61,13 +65,18 @@ export function AuthProvider({ children }) {
 
         // Update state
         setUser(user);
+        setIsAuthenticated(true);
 
         return {
           success: true,
           user,
           message: "Login successful",
         };
-      } else if (response?.data?.status === "success" && response?.data?.data?.token && response?.data?.data?.user) {
+      } else if (
+        response?.data?.status === "success" &&
+        response?.data?.data?.token &&
+        response?.data?.data?.user
+      ) {
         // Alternative response structure
         const { token, user } = response.data.data;
 
@@ -78,6 +87,7 @@ export function AuthProvider({ children }) {
 
         // Update state
         setUser(user);
+        setIsAuthenticated(true);
 
         return {
           success: true,
@@ -86,9 +96,9 @@ export function AuthProvider({ children }) {
         };
       }
 
-      return { 
-        success: false, 
-        message: response?.data?.message || "Invalid login response"
+      return {
+        success: false,
+        message: response?.data?.message || "Invalid login response",
       };
     } catch (error) {
       console.error("Login error:", error);
@@ -116,6 +126,7 @@ export function AuthProvider({ children }) {
 
         // Update state
         setUser(user);
+        setIsAuthenticated(true);
 
         return {
           success: true,
@@ -144,11 +155,13 @@ export function AuthProvider({ children }) {
 
     // Update state
     setUser(null);
+    setIsAuthenticated(false);
   };
 
   const value = {
     user,
     loading,
+    isAuthenticated,
     login,
     register,
     logout,

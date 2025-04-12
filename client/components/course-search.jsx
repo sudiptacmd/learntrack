@@ -3,11 +3,15 @@
 import { useState } from "react";
 import { Search, Filter } from "lucide-react";
 
-export default function CourseSearch() {
-  const [searchQuery, setSearchQuery] = useState("");
+export default function CourseSearch({
+  searchQuery,
+  setSearchQuery,
+  priceRange,
+  setPriceRange,
+  selectedCategories,
+  setSelectedCategories,
+}) {
   const [showFilters, setShowFilters] = useState(false);
-  const [priceRange, setPriceRange] = useState([0, 100]);
-  const [selectedCategories, setSelectedCategories] = useState([]);
 
   const categories = ["Web Development", "JavaScript", "Design", "Backend"];
 
@@ -21,11 +25,7 @@ export default function CourseSearch() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // In a real app, this would trigger a search with the current filters
-    console.log("Searching for:", searchQuery, "with filters:", {
-      priceRange,
-      categories: selectedCategories,
-    });
+    // Search is now handled by the parent component
   };
 
   return (

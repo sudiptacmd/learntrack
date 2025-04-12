@@ -17,7 +17,7 @@ export default function TasksPage() {
   // Fetch tasks
   const fetchTasks = async () => {
     if (!user?.id) return;
-    
+
     try {
       setIsLoading(true);
       setError(null);
@@ -54,15 +54,15 @@ export default function TasksPage() {
   const handleTaskUpdate = async (taskId, updates) => {
     try {
       // Optimistically update the UI
-      setTasks(prevTasks =>
-        prevTasks.map(task =>
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
           task._id === taskId ? { ...task, ...updates } : task
         )
       );
 
       // Make the API call
       const response = await tasksAPI.updateTask(taskId, updates);
-      
+
       if (response.data.status === "success") {
         // Refresh the task list to ensure consistency
         await fetchTasks();
@@ -81,11 +81,21 @@ export default function TasksPage() {
   // Handle task deletion
   const handleTaskDelete = async (taskId) => {
     try {
-      await tasksAPI.deleteTask(taskId);
-      await fetchTasks();
+      // Optimistically update the UI
+      setTasks((prevTasks) => prevTasks.filter((task) => task._id !== taskId));
+
+      // Make the API call
+      const response = await tasksAPI.deleteTask(taskId);
+
+      if (response.data.status !== "success") {
+        // Revert optimistic update on failure
+        await fetchTasks();
+      }
     } catch (error) {
       console.error("Error deleting task:", error);
       setError("Failed to delete task. Please try again.");
+      // Revert optimistic update
+      await fetchTasks();
     }
   };
 
