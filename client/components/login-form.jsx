@@ -1,30 +1,61 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "../context/AuthContext";
 
 export default function LoginForm() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const router = useRouter()
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { login } = useAuth();
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    // Clear error when user types
+    if (error) setError("");
+  };
 
-    // In a real app, this would validate against a database
-    if (email === "john@example.com" && password === "password123") {
-      // Simulate successful login
-      router.push("/dashboard")
-    } else {
-      setError("Invalid email or password")
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await login(formData.email, formData.password);
+      console.log("Login result:", result);
+
+      if (result.success) {
+        // Redirect to dashboard on successful login
+        router.push("/dashboard");
+        router.refresh(); // Force a refresh to update the UI
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="card">
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+      {error && (
+        <div className="bg-red-50 text-red-500 p-3 rounded-md text-sm mb-4">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -32,12 +63,15 @@ export default function LoginForm() {
             Email
           </label>
           <input
-            id="email"
             type="email"
-            className="form-input"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
             required
+            className="form-input"
+            placeholder="Enter your email"
+            disabled={loading}
           />
         </div>
 
@@ -46,43 +80,66 @@ export default function LoginForm() {
             Password
           </label>
           <input
-            id="password"
             type="password"
-            className="form-input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
             required
+            className="form-input"
+            placeholder="Enter your password"
+            disabled={loading}
           />
         </div>
 
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <input id="remember-me" type="checkbox" className="h-4 w-4 text-purple-600 border-gray-300 rounded" />
-            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+            <input
+              id="remember-me"
+              type="checkbox"
+              className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+              disabled={loading}
+            />
+            <label
+              htmlFor="remember-me"
+              className="ml-2 block text-sm text-gray-700"
+            >
               Remember me
             </label>
           </div>
 
           <div className="text-sm">
-            <Link href="/forgot-password" className="text-purple-600 hover:text-purple-500">
+            <Link
+              href="/forgot-password"
+              className="text-purple-600 hover:text-purple-500"
+            >
               Forgot your password?
             </Link>
           </div>
         </div>
 
-        <button type="submit" className="btn-primary w-full">
-          Sign in
+        <button
+          type="submit"
+          disabled={loading}
+          className={`btn-primary w-full ${
+            loading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+        >
+          {loading ? "Logging in..." : "Login"}
         </button>
       </form>
 
       <div className="mt-4 text-center">
         <p className="text-sm text-gray-600">
           Don't have an account?{" "}
-          <Link href="/register" className="text-purple-600 hover:text-purple-500">
-            Register
+          <Link
+            href="/register"
+            className="text-purple-600 hover:text-purple-700"
+          >
+            Register here
           </Link>
         </p>
       </div>
     </div>
-  )
+  );
 }

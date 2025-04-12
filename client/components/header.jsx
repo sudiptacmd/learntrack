@@ -1,143 +1,84 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Menu, X, User } from "lucide-react"
+import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 export default function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
 
-  // This would normally be handled with a proper auth system
-  const toggleLogin = () => {
-    setIsLoggedIn(!isLoggedIn)
-  }
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
 
   return (
-    <header className="bg-purple-600 text-white shadow-md">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="text-2xl font-bold">
-            Taskly
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-6">
-            <Link href="/tasks" className="hover:text-purple-200">
-              Tasks
-            </Link>
-            <Link href="/courses" className="hover:text-purple-200">
-              Courses
-            </Link>
-            {isLoggedIn && (
-              <>
-                <Link href="/my-courses" className="hover:text-purple-200">
-                  My Courses
-                </Link>
-                {/* Add admin link if user is admin */}
-                <Link href="/admin" className="hover:text-purple-200">
-                  Admin
-                </Link>
-                <Link href="/dashboard" className="hover:text-purple-200">
-                  Dashboard
-                </Link>
-                <Link href="/publish" className="hover:text-purple-200">
-                  Publish Course
-                </Link>
-              </>
-            )}
-          </nav>
-
-          <div className="hidden md:flex items-center space-x-4">
-            {isLoggedIn ? (
-              <div className="flex items-center space-x-4">
-                <Link href="/profile" className="flex items-center hover:text-purple-200">
-                  <User className="mr-1 h-5 w-5" />
-                  Profile
-                </Link>
-                <button
-                  onClick={toggleLogin}
-                  className="bg-white text-purple-600 px-4 py-2 rounded hover:bg-purple-100"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <div className="space-x-2">
-                <Link href="/login" className="bg-purple-700 px-4 py-2 rounded hover:bg-purple-800">
-                  Login
-                </Link>
-                <Link href="/register" className="bg-white text-purple-600 px-4 py-2 rounded hover:bg-purple-100">
-                  Register
-                </Link>
-              </div>
-            )}
+    <header className="bg-white shadow">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <div className="flex-shrink-0 flex items-center">
+              <Link href="/" className="text-xl font-bold text-purple-600">
+                Taskly
+              </Link>
+            </div>
+            <nav className="ml-6 flex space-x-8">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-purple-600"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/tasks"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-purple-600"
+              >
+                Tasks
+              </Link>
+              <Link
+                href="/courses"
+                className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-purple-600"
+              >
+                Courses
+              </Link>
+            </nav>
           </div>
-
-          {/* Mobile menu button */}
-          <button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 space-y-4">
-            <Link href="/tasks" className="block hover:text-purple-200" onClick={() => setIsMenuOpen(false)}>
-              Tasks
-            </Link>
-            <Link href="/courses" className="block hover:text-purple-200" onClick={() => setIsMenuOpen(false)}>
-              Courses
-            </Link>
-            {isLoggedIn ? (
-              <>
-                <Link href="/my-courses" className="block hover:text-purple-200" onClick={() => setIsMenuOpen(false)}>
-                  My Courses
-                </Link>
-                {/* Add admin link if user is admin */}
-                <Link href="/admin" className="block hover:text-purple-200" onClick={() => setIsMenuOpen(false)}>
-                  Admin
-                </Link>
-                <Link href="/dashboard" className="block hover:text-purple-200" onClick={() => setIsMenuOpen(false)}>
-                  Dashboard
-                </Link>
-                <Link href="/publish" className="block hover:text-purple-200" onClick={() => setIsMenuOpen(false)}>
-                  Publish Course
-                </Link>
-                <Link href="/profile" className="block hover:text-purple-200" onClick={() => setIsMenuOpen(false)}>
+          <div className="flex items-center">
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-4">
+                <Link
+                  href="/profile"
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
                   Profile
                 </Link>
                 <button
-                  onClick={() => {
-                    toggleLogin()
-                    setIsMenuOpen(false)
-                  }}
-                  className="block w-full text-left hover:text-purple-200"
+                  onClick={handleLogout}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
                 >
                   Logout
                 </button>
-              </>
+              </div>
             ) : (
-              <div className="space-y-2">
+              <div className="flex items-center space-x-4">
                 <Link
                   href="/login"
-                  className="block bg-purple-700 px-4 py-2 rounded hover:bg-purple-800 text-center"
-                  onClick={() => setIsMenuOpen(false)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
                 >
                   Login
                 </Link>
                 <Link
                   href="/register"
-                  className="block bg-white text-purple-600 px-4 py-2 rounded hover:bg-purple-100 text-center"
-                  onClick={() => setIsMenuOpen(false)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 >
                   Register
                 </Link>
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </header>
-  )
+  );
 }

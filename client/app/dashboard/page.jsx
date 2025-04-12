@@ -1,164 +1,200 @@
-import { getTasksByUserId, getEnrolledCourses } from "@/lib/data"
-import Link from "next/link"
-import TaskList from "@/components/task-list"
-import CourseList from "@/components/course-list"
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { tasksAPI, coursesAPI } from "@/utils/api";
+import TaskList from "@/components/task-list";
+import CourseList from "@/components/course-list";
 
 export default function DashboardPage() {
-  // In a real app, we would get the userId from the session
-  const userId = 1
-  const tasks = getTasksByUserId(userId)
-  const enrolledCourses = getEnrolledCourses(userId)
+  const [tasks, setTasks] = useState([]);
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [stats, setStats] = useState({
+    totalTasks: 0,
+    completedTasks: 0,
+    tasksDueSoon: 0,
+  });
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-  // Get only incomplete tasks
-  const incompleteTasks = tasks.filter((task) => !task.completed)
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
 
-  // Get tasks due soon (within 7 days)
-  const today = new Date()
-  const sevenDaysLater = new Date(today)
-  sevenDaysLater.setDate(today.getDate() + 7)
+  useEffect(() => {
+    if (user) {
+      fetchTasks();
+      fetchCourses();
+    }
+  }, [user]);
 
-  const tasksDueSoon = incompleteTasks.filter((task) => {
-    const dueDate = new Date(task.dueDate)
-    return dueDate <= sevenDaysLater
-  })
+  const fetchTasks = async () => {
+    try {
+      const response = await tasksAPI.getTasks();
+      if (response.data.status === "success") {
+        setTasks(response.data.data.tasks);
+        updateStats(response.data.data.tasks);
+      }
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
+  };
 
-  // Calculate completion data for pie chart
-  const completedTasks = tasks.filter((task) => task.completed).length
-  const pendingTasks = tasks.length - completedTasks
+  const fetchCourses = async () => {
+    try {
+      const response = await coursesAPI.getCourses();
+      if (response.data.status === "success") {
+        setEnrolledCourses(response.data.data.courses);
+      }
+    } catch (error) {
+      console.error("Error fetching courses:", error);
+    }
+  };
 
-  const completionData = [
-    { name: "Completed", value: completedTasks },
-    { name: "Pending", value: pendingTasks },
-  ]
+  const updateStats = (tasks) => {
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter((task) => task.completed).length;
+    const tasksDueSoon = tasks.filter(
+      (task) =>
+        !task.completed &&
+        new Date(task.dueDate) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    ).length;
 
-  // Colors for the pie chart
-  const COLORS = ["#10B981", "#F59E0B"]
+    setStats({
+      totalTasks,
+      completedTasks,
+      tasksDueSoon,
+    });
+  };
+
+  const handleTaskUpdate = async (updatedTask) => {
+    try {
+      const response = await tasksAPI.updateTask(updatedTask._id, updatedTask);
+      if (response.data.status === "success") {
+        setTasks((prevTasks) => {
+          const newTasks = prevTasks.map((task) =>
+            task._id === updatedTask._id ? response.data.data.task : task
+          );
+          updateStats(newTasks);
+          return newTasks;
+        });
+      }
+    } catch (error) {
+      console.error("Error updating task:", error);
+    }
+  };
+
+  const handleTaskDelete = async (taskId) => {
+    try {
+      const response = await tasksAPI.deleteTask(taskId);
+      if (response.data.status === "success") {
+        setTasks((prevTasks) => {
+          const newTasks = prevTasks.filter((task) => task._id !== taskId);
+          updateStats(newTasks);
+          return newTasks;
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    }
+  };
+
+  // Calculate tasks due soon once
+  const tasksDueSoon = tasks.filter(
+    (task) =>
+      !task.completed &&
+      new Date(task.dueDate) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  );
+
+  // Update stats whenever tasks change
+  useEffect(() => {
+    if (tasks.length > 0) {
+      updateStats(tasks);
+    }
+  }, [tasks]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to login
+  }
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card bg-purple-50">
-          <h3 className="text-lg font-semibold mb-2">Tasks</h3>
-          <p className="text-3xl font-bold text-purple-600">{tasks.length}</p>
-          <p className="text-sm text-gray-600 mt-1">{tasks.filter((task) => task.completed).length} completed</p>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Welcome back, {user.name}!
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Here's an overview of your tasks and courses.
+          </p>
         </div>
 
-        <div className="card bg-blue-50">
-          <h3 className="text-lg font-semibold mb-2">Enrolled Courses</h3>
-          <p className="text-3xl font-bold text-blue-600">{enrolledCourses.length}</p>
-          <p className="text-sm text-gray-600 mt-1">Continue learning</p>
-        </div>
-
-        <div className="card bg-yellow-50">
-          <h3 className="text-lg font-semibold mb-2">Due Soon</h3>
-          <p className="text-3xl font-bold text-yellow-600">{tasksDueSoon.length}</p>
-          <p className="text-sm text-gray-600 mt-1">Tasks due in the next 7 days</p>
-        </div>
-      </div>
-
-      {/* Task Completion Chart */}
-      <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Task Completion</h2>
-          <Link href="/tasks" className="text-purple-600 hover:text-purple-800">
-            View All Tasks
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={completionData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                >
-                  {completionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-medium text-gray-900">Total Tasks</h3>
+            <p className="mt-2 text-3xl font-bold text-purple-600">
+              {stats.totalTasks}
+            </p>
           </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-              <div>
-                <p className="font-medium">Completed Tasks</p>
-                <p className="text-sm text-gray-600">
-                  {completedTasks} tasks ({tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0}%)
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
-              <div>
-                <p className="font-medium">Pending Tasks</p>
-                <p className="text-sm text-gray-600">
-                  {pendingTasks} tasks ({tasks.length > 0 ? Math.round((pendingTasks / tasks.length) * 100) : 0}%)
-                </p>
-              </div>
-            </div>
-            <div className="pt-4">
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div
-                  className="bg-purple-600 h-2.5 rounded-full"
-                  style={{
-                    width: `${tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0}%`,
-                  }}
-                ></div>
-              </div>
-              <p className="text-sm text-gray-600 mt-1">Overall progress</p>
-            </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-medium text-gray-900">
+              Completed Tasks
+            </h3>
+            <p className="mt-2 text-3xl font-bold text-green-500">
+              {stats.completedTasks}
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-medium text-gray-900">Due Soon</h3>
+            <p className="mt-2 text-3xl font-bold text-yellow-500">
+              {stats.tasksDueSoon}
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Tasks Due Soon */}
-      <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Tasks Due Soon</h2>
-          <Link href="/tasks" className="text-purple-600 hover:text-purple-800">
-            View All Tasks
-          </Link>
+        {/* Tasks Due Soon */}
+        <div className="bg-white p-6 rounded-lg shadow mb-8">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Tasks Due Soon
+          </h3>
+          {tasksDueSoon.length > 0 ? (
+            <TaskList
+              tasks={tasksDueSoon}
+              onTaskUpdate={handleTaskUpdate}
+              onTaskDelete={handleTaskDelete}
+            />
+          ) : (
+            <p className="text-gray-500">No tasks due in the next 7 days.</p>
+          )}
         </div>
 
-        <TaskList tasks={tasksDueSoon.slice(0, 3)} />
-
-        {tasksDueSoon.length === 0 && <p className="text-gray-500">No tasks due soon.</p>}
-      </div>
-
-      {/* Enrolled Courses */}
-      <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Your Courses</h2>
-          <Link href="/courses" className="text-purple-600 hover:text-purple-800">
-            Browse More Courses
-          </Link>
+        {/* Enrolled Courses */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Your Courses
+          </h3>
+          {enrolledCourses.length > 0 ? (
+            <CourseList courses={enrolledCourses} />
+          ) : (
+            <p className="text-gray-500">
+              You haven't enrolled in any courses yet.
+            </p>
+          )}
         </div>
-
-        <CourseList courses={enrolledCourses} />
-
-        {enrolledCourses.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">You haven't enrolled in any courses yet.</p>
-            <Link href="/courses" className="btn-primary">
-              Explore Courses
-            </Link>
-          </div>
-        )}
       </div>
     </div>
-  )
+  );
 }

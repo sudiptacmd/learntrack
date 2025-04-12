@@ -1,32 +1,32 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Search, Filter } from "lucide-react"
+import { useState } from "react";
+import { Search, Filter } from "lucide-react";
 
 export default function CourseSearch() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [showFilters, setShowFilters] = useState(false)
-  const [priceRange, setPriceRange] = useState([0, 100])
-  const [selectedCategories, setSelectedCategories] = useState([])
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState([0, 100]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
 
-  const categories = ["Web Development", "JavaScript", "Design", "Backend"]
+  const categories = ["Web Development", "JavaScript", "Design", "Backend"];
 
   const handleCategoryToggle = (category) => {
     if (selectedCategories.includes(category)) {
-      setSelectedCategories(selectedCategories.filter((c) => c !== category))
+      setSelectedCategories(selectedCategories.filter((c) => c !== category));
     } else {
-      setSelectedCategories([...selectedCategories, category])
+      setSelectedCategories([...selectedCategories, category]);
     }
-  }
+  };
 
   const handleSearch = (e) => {
-    e.preventDefault()
+    e.preventDefault();
     // In a real app, this would trigger a search with the current filters
     console.log("Searching for:", searchQuery, "with filters:", {
       priceRange,
       categories: selectedCategories,
-    })
-  }
+    });
+  };
 
   return (
     <div className="card">
@@ -69,7 +69,12 @@ export default function CourseSearch() {
                   min="0"
                   max="100"
                   value={priceRange[0]}
-                  onChange={(e) => setPriceRange([Number.parseInt(e.target.value), priceRange[1]])}
+                  onChange={(e) =>
+                    setPriceRange([
+                      Number.parseInt(e.target.value),
+                      priceRange[1],
+                    ])
+                  }
                   className="flex-grow"
                 />
                 <span>${priceRange[1]}</span>
@@ -78,7 +83,12 @@ export default function CourseSearch() {
                   min="0"
                   max="100"
                   value={priceRange[1]}
-                  onChange={(e) => setPriceRange([priceRange[0], Number.parseInt(e.target.value)])}
+                  onChange={(e) =>
+                    setPriceRange([
+                      priceRange[0],
+                      Number.parseInt(e.target.value),
+                    ])
+                  }
                   className="flex-grow"
                 />
               </div>
@@ -107,5 +117,5 @@ export default function CourseSearch() {
         )}
       </form>
     </div>
-  )
+  );
 }

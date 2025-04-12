@@ -1,102 +1,170 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { tasksAPI } from "@/utils/api";
 
-export default function CreateTaskForm({ userId }) {
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [dueDate, setDueDate] = useState("")
-  const [priority, setPriority] = useState("medium")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [success, setSuccess] = useState(false)
+export default function CreateTaskForm({ onTaskCreated }) {
+  const { user, loading } = useAuth();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [priority, setPriority] = useState("medium");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    setIsSubmitting(true)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-    // In a real app, this would create a new task in the database
-    setTimeout(() => {
-      setIsSubmitting(false)
-      setSuccess(true)
+    if (!user) {
+      setError("Please log in to create tasks");
+      return;
+    }
 
-      // Reset form
-      setTitle("")
-      setDescription("")
-      setDueDate("")
-      setPriority("medium")
+    try {
+      setIsSubmitting(true);
+      setError(null);
 
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setSuccess(false)
-      }, 3000)
-    }, 1000)
+      const taskData = {
+        title,
+        description,
+        dueDate,
+        priority,
+        userId: user._id,
+      };
+
+      const response = await tasksAPI.createTask(taskData);
+
+      if (response.data.status === "success") {
+        setSuccess(true);
+        // Reset form
+        setTitle("");
+        setDescription("");
+        setDueDate("");
+        setPriority("medium");
+
+        // Notify parent component
+        if (onTaskCreated) {
+          onTaskCreated(response.data.data.task);
+        }
+
+        // Hide success message after 3 seconds
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        throw new Error(response.data.message || "Failed to create task");
+      }
+    } catch (error) {
+      console.error("Error creating task:", error);
+      setError(error.response?.data?.message || "Failed to create task");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Loading authentication state...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Please log in to create tasks.</p>
+      </div>
+    );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="bg-red-50 text-red-500 p-3 rounded-md">{error}</div>
+      )}
       {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+        <div className="bg-green-50 text-green-500 p-3 rounded-md">
           Task created successfully!
         </div>
       )}
-
       <div>
-        <label htmlFor="title" className="form-label">
-          Task Title
+        <label
+          htmlFor="title"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Title
         </label>
         <input
-          id="title"
           type="text"
-          className="form-input"
+          id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          className="form-input w-full"
           required
+          disabled={isSubmitting}
         />
       </div>
-
       <div>
-        <label htmlFor="description" className="form-label">
+        <label
+          htmlFor="description"
+          className="block text-sm font-medium text-gray-700"
+        >
           Description
         </label>
         <textarea
           id="description"
-          className="form-input"
-          rows="3"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          className="form-input w-full"
+          rows="3"
+          disabled={isSubmitting}
         />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="due-date" className="form-label">
+          <label
+            htmlFor="dueDate"
+            className="block text-sm font-medium text-gray-700"
+          >
             Due Date
           </label>
           <input
-            id="due-date"
             type="date"
-            className="form-input"
+            id="dueDate"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            required
+            className="form-input w-full"
+            disabled={isSubmitting}
           />
         </div>
-
         <div>
-          <label htmlFor="priority" className="form-label">
+          <label
+            htmlFor="priority"
+            className="block text-sm font-medium text-gray-700"
+          >
             Priority
           </label>
-          <select id="priority" className="form-input" value={priority} onChange={(e) => setPriority(e.target.value)}>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
+          <select
+            id="priority"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            className="form-input w-full"
+            disabled={isSubmitting}
+          >
             <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
           </select>
         </div>
       </div>
-
-      <button type="submit" className="btn-primary" disabled={isSubmitting}>
+      <button
+        type="submit"
+        className="btn-primary w-full"
+        disabled={isSubmitting || !user}
+      >
         {isSubmitting ? "Creating..." : "Create Task"}
       </button>
     </form>
-  )
+  );
 }
